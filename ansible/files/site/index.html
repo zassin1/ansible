@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="XYZ blogging platform profile page deployed with Terraform and Ansible">
+  <title>XYZ Blog | DevOps Course-End Project</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <nav class="nav"><strong>XYZ Blog</strong><a href="#posts">Posts</a></nav>
+    <section class="profile">
+      <div class="avatar" aria-hidden="true">JL</div>
+      <div>
+        <p class="eyebrow">DevOps • Azure • Automation</p>
+        <h1>Build. Automate. Share.</h1>
+        <p class="lead">A sample blogging profile hosted on an Azure Ubuntu VM, provisioned by Terraform and configured by Ansible.</p>
+      </div>
+    </section>
+  </header>
+  <main id="posts" class="content">
+    <h2>Recent posts</h2>
+    <div class="cards">
+      <article><span>Infrastructure as Code</span><h3>Provisioning Azure with Terraform</h3><p>Repeatable infrastructure creates a resource group, network, security rules, public IP, and Linux VM.</p></article>
+      <article><span>Configuration Management</span><h3>Deploying Nginx with Ansible</h3><p>An idempotent role installs Nginx, copies site content, templates the virtual host, and verifies HTTP status 200.</p></article>
+      <article><span>DevOps</span><h3>From source control to a running site</h3><p>The repository includes validation workflows and scripts suitable for a GitHub and Codex development workflow.</p></article>
+    </div>
+  </main>
+  <footer>Deployed automatically with Terraform + Ansible</footer>
+</body>
+</html>

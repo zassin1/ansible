@@ -1,0 +1,35 @@
+name: Validate Terraform and Ansible
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Terraform format
+        run: terraform -chdir=terraform fmt -check -recursive
+
+      - name: Terraform initialize without backend
+        run: terraform -chdir=terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform -chdir=terraform validate
+
+      - name: Install Ansible tooling
+        run: pipx install ansible-core
+
+      - name: Ansible syntax check
+        working-directory: ansible
+        run: ansible-playbook playbooks/deploy.yml --syntax-check -i inventory/hosts.yml.example

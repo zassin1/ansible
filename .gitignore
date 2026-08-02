@@ -1,0 +1,22 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
+
+# Generated inventory
+ansible/inventory/hosts.yml
+
+# SSH and secrets
+*.pem
+*.key
+.env
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

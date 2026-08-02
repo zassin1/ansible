@@ -1,0 +1,69 @@
+---
+- name: Update apt cache and install Nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create application document root
+  ansible.builtin.file:
+    path: "{{ app_root }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+
+- name: Copy web application files
+  ansible.builtin.copy:
+    src: "{{ site_source }}/"
+    dest: "{{ app_root }}/"
+    owner: www-data
+    group: www-data
+    mode: "0644"
+  notify: Reload Nginx
+
+- name: Deploy Nginx site configuration
+  ansible.builtin.template:
+    src: nginx-site.conf.j2
+    dest: "/etc/nginx/sites-available/{{ nginx_site_name }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload Nginx
+
+- name: Enable Nginx site
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ nginx_site_name }}"
+    dest: "/etc/nginx/sites-enabled/{{ nginx_site_name }}"
+    state: link
+  notify: Reload Nginx
+
+- name: Disable the default Nginx site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload Nginx
+
+- name: Validate Nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
+- name: Ensure Nginx is enabled and running
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+
+- name: Apply pending handler changes before verification
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify the website locally on the VM
+  ansible.builtin.uri:
+    url: http://127.0.0.1/
+    status_code: 200
+    return_content: true
+  register: website_check
+  retries: 5
+  delay: 2
+  until: website_check.status == 200

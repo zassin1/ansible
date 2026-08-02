@@ -1,0 +1,21 @@
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    server_name {{ nginx_server_name }};
+    root {{ app_root }};
+    index index.html;
+
+    access_log /var/log/nginx/{{ nginx_site_name }}.access.log;
+    error_log  /var/log/nginx/{{ nginx_site_name }}.error.log;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    location ~* \.(css|js|png|jpg|jpeg|gif|svg|ico)$ {
+        expires 7d;
+        add_header Cache-Control "public, no-transform";
+        try_files $uri =404;
+    }
+}

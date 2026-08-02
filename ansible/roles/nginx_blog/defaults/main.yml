@@ -1,0 +1,6 @@
+---
+app_name: xyz-blog
+app_root: /var/www/xyz-blog
+nginx_site_name: xyz-blog
+nginx_server_name: _
+site_source: "{{ playbook_dir }}/../files/site"

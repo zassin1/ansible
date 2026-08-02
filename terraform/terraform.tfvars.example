@@ -1,0 +1,11 @@
+subscription_id     = "c376c5da-f553-433b-8db3-72b61be70105"
+tenant_id           = "d5783933-d8d3-4c23-8256-4662298b20e9"
+location            = "westus2"
+resource_group_name = "rg-ansible-blog-dev"
+prefix              = "ansblog"
+admin_username       = "azureadmin"
+ssh_public_key_path  = "~/.ssh/id_ed25519.pub"
+vm_size              = "Standard_B1s"
+
+# Strongly recommended: replace * with your public IPv4 address and /32.
+allowed_ssh_cidr = "*"

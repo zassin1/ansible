@@ -1,0 +1,168 @@
+name: Deploy Azure Infrastructure and Website
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/**"
+      - "ansible/**"
+      - "scripts/**"
+      - ".github/workflows/deploy.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: azure-ansible-deployment
+  cancel-in-progress: false
+
+env:
+  ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  ARM_USE_OIDC: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: azure-dev
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify Azure context
+        run: |
+          az account show \
+            --query "{subscription:name, subscriptionId:id, tenantId:tenantId}" \
+            --output table
+
+      - name: Configure SSH key
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+
+          printf '%s\n' '${{ secrets.AZURE_VM_SSH_PRIVATE_KEY }}' \
+            > "$HOME/.ssh/id_ed25519"
+
+          chmod 600 "$HOME/.ssh/id_ed25519"
+
+          ssh-keygen \
+            -y \
+            -f "$HOME/.ssh/id_ed25519" \
+            > "$HOME/.ssh/id_ed25519.pub"
+
+          chmod 644 "$HOME/.ssh/id_ed25519.pub"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+
+      - name: Terraform format check
+        run: terraform -chdir=terraform fmt -check -recursive
+
+      - name: Terraform initialize
+        run: terraform -chdir=terraform init
+
+      - name: Terraform validate
+        run: terraform -chdir=terraform validate
+
+      - name: Terraform plan
+        run: |
+          terraform -chdir=terraform plan \
+            -input=false \
+            -out=tfplan
+
+      - name: Terraform apply
+        run: |
+          terraform -chdir=terraform apply \
+            -input=false \
+            -auto-approve \
+            tfplan
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ansible-core
+
+      - name: Generate Ansible inventory
+        run: |
+          chmod +x scripts/generate_inventory.sh
+          ./scripts/generate_inventory.sh
+
+      - name: Display generated inventory
+        run: cat ansible/inventory/hosts.yml
+
+      - name: Wait for SSH
+        shell: bash
+        run: |
+          VM_IP=$(terraform -chdir=terraform output -raw public_ip_address)
+
+          echo "Waiting for SSH on $VM_IP..."
+
+          for attempt in {1..30}; do
+            if ssh \
+              -i "$HOME/.ssh/id_ed25519" \
+              -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=10 \
+              azureadmin@"$VM_IP" \
+              "echo SSH connection successful"; then
+              exit 0
+            fi
+
+            echo "Attempt $attempt failed; waiting 10 seconds..."
+            sleep 10
+          done
+
+          echo "Unable to connect to the VM through SSH."
+          exit 1
+
+      - name: Run Ansible deployment
+        working-directory: ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible-playbook \
+            -i inventory/hosts.yml \
+            playbooks/deploy.yml
+
+      - name: Verify website
+        shell: bash
+        run: |
+          WEBSITE_URL=$(terraform -chdir=terraform output -raw website_url)
+
+          echo "Testing $WEBSITE_URL"
+
+          curl \
+            --fail \
+            --retry 12 \
+            --retry-delay 10 \
+            "$WEBSITE_URL"
+
+          echo "Website deployed successfully: $WEBSITE_URL"
+
+      - name: Add deployment summary
+        shell: bash
+        run: |
+          WEBSITE_URL=$(terraform -chdir=terraform output -raw website_url)
+
+          {
+            echo "## Azure deployment completed"
+            echo ""
+            echo "Website: $WEBSITE_URL"
+            echo ""
+            echo "Subscription: ${{ vars.AZURE_SUBSCRIPTION_ID }}"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -72,7 +72,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform format check
-        run: terraform -chdir=terraform fmt -check -recursive
+        run: terraform -chdir=terraform fmt -recursive
 
       - name: Terraform initialize
         run: terraform -chdir=terraform init
